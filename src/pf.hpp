@@ -4,6 +4,7 @@
 #define _USE_MATH_DEFINES
 
 #include <cmath>
+#include <eigen3/Eigen/Dense>
 #include <iostream>
 #include <rclcpp/time.hpp>
 #include <string>
@@ -12,10 +13,11 @@
 #include "angle_helpers.hpp"
 #include "builtin_interfaces/msg/time.hpp"
 #include "geometry_msgs/msg/pose.hpp"
-#include "nav2_msgs/msg/particle_cloud.h"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/quaternion.hpp"
 #include "helper_functions.hpp"
+#include "nav2_msgs/msg/particle_cloud.hpp"
+
 #include "occupancy_field.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
@@ -49,7 +51,25 @@ public:
    * A helper function to convert a particle to a geometry_msgs/Pose message
    */
   geometry_msgs::msg::Pose as_pose();
+  void update_position(Eigen::Matrix3d delta, float delta_angle);
+  void add_noise();
+  void update_weight(float new_w);
+  Eigen::Matrix3d transform_scan_to_map(std::vector<float> r,
+                                        std::vector<float> theta);
+  Eigen::Matrix3d homogeneous_pose();
 };
+
+/**
+ * Return a random sample of n elements from the set choices with the specified
+ * probabilities
+ * @param choices: the values to sample from represented as a list
+ * @param probabilities: the probability of selecting each element in choices
+ * represented as a list
+ * @param n: the number of samples
+ */
+std::vector<Particle> draw_random_sample(std::vector<Particle> choices,
+                                             std::vector<float> probabilities,
+                                             unsigned int n);
 
 /**
  * The class that represents a Particle Filter ROS Node
@@ -103,7 +123,7 @@ private:
    * it.
    */
   void run_loop();
- 
+
   bool moved_far_enough_to_update(std::vector<float> new_odom_xy_theta);
 
   /**
@@ -168,7 +188,7 @@ private:
   std::string map_frame;
   std::string odom_frame;
   std::string scan_topic;
-  int n_particles;
+  unsigned int n_particles;
   float d_thresh;
   float a_thresh;
   rclcpp::Publisher<nav2_msgs::msg::ParticleCloud>::SharedPtr particle_pub;
@@ -177,8 +197,10 @@ private:
   std::vector<float> current_odom_xy_theta;
   std::vector<Particle> particle_cloud;
   std::optional<geometry_msgs::msg::Pose> odom_pose;
-  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr laserscan_subscriber;
-  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr initial_pose_subscriber;
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr
+      laserscan_subscriber;
+  rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr
+      initial_pose_subscriber;
   rclcpp::TimerBase::SharedPtr timer;
   std::shared_ptr<OccupancyField> occupancy_field;
   std::shared_ptr<TFHelper> transform_helper_;

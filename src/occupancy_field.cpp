@@ -77,29 +77,34 @@ OccupancyField::OccupancyField(std::shared_ptr<rclcpp::Node> node) {
     }
   }
 
+  this->occupied_coordinates = occupied_coordinates;
   // populate occupancy field
   RCLCPP_DEBUG_STREAM(node->get_logger(), "occupancy field ready");
 };
 
-std::array<unsigned int, 4> OccupancyField::get_obstacle_bounding_box() {
+std::array<double, 4> OccupancyField::get_obstacle_bounding_box() {
   unsigned int x_min = UINT8_MAX, x_max = 0, y_min = UINT8_MAX, y_max = 0;
-
-  for (unsigned int i = 0; i < occupied_coordinates.cols(); i++) {
-    if (occupied_coordinates(0, i) < x_min) {
-      x_min = occupied_coordinates(0, i);
+  for (unsigned int i = 0; i < this->occupied_coordinates.cols(); i++) {
+    if (this->occupied_coordinates(0, i) < x_min) {
+      x_min = this->occupied_coordinates(0, i);
     }
-    if (occupied_coordinates(0, i) > x_max) {
-      x_max = occupied_coordinates(0, i);
+    if (this->occupied_coordinates(0, i) > x_max) {
+      x_max = this->occupied_coordinates(0, i);
     }
-    if (occupied_coordinates(1, i) < y_min) {
-      y_min = occupied_coordinates(0, i);
+    if (this->occupied_coordinates(1, i) < y_min) {
+      y_min = this->occupied_coordinates(1, i);
     }
-    if (occupied_coordinates(1, i) > y_max) {
-      y_max = occupied_coordinates(0, i);
+    if (this->occupied_coordinates(1, i) > y_max) {
+      y_max = this->occupied_coordinates(1, i);
     }
   }
 
-  std::array<unsigned int, 4> ret{{x_min, x_max, y_min, y_max}};
+  auto r = map.info.resolution;
+  std::array<double, 4> ret{
+      {(double)x_min * r + (double)map.info.origin.position.x,
+       (double)x_max * r + (double)map.info.origin.position.x,
+       (double)y_min * r + (double)map.info.origin.position.y,
+       (double)y_max * r + (double)map.info.origin.position.y}};
   return ret;
 }
 

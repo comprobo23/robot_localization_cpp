@@ -29,7 +29,7 @@ public:
    * bounding box contains all of the obstacles in the map.  The format of
    * the return value is ((x_lower, x_upper), (y_lower, y_upper))
    */
-  std::array<unsigned int, 4> get_obstacle_bounding_box();
+  std::array<double, 4> get_obstacle_bounding_box();
 
   /**
    * Compute the closest obstacle to the specified (x,y) coordinate in

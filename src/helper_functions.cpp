@@ -12,6 +12,7 @@
 
 #include "angle_helpers.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "pf.hpp"
 
 geometry_msgs::msg::Pose
 stamped_transform_to_pose(geometry_msgs::msg::TransformStamped t) {
@@ -28,40 +29,6 @@ stamped_transform_to_pose(geometry_msgs::msg::TransformStamped t) {
   return pose;
 }
 
-std::vector<unsigned int> draw_random_sample(std::vector<unsigned int> choices,
-                                             std::vector<float> probabilities,
-                                             unsigned int n) {
-  if (choices.empty() || probabilities.empty() || n == 0 ||
-      choices.size() != probabilities.size()) {
-    // Handle invalid inputs
-    return {};
-  }
-
-  std::vector<unsigned int> samples;
-  std::vector<float> bins;
-
-  // Compute cumulative probabilities
-  float cumulative = 0.0;
-  for (float prob : probabilities) {
-    cumulative += prob;
-    bins.push_back(cumulative);
-  }
-
-  // Initialize random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dist(0.0, 1.0);
-
-  for (size_t i = 0; i < n; ++i) {
-    float randNum = dist(gen);
-    auto it = std::upper_bound(bins.begin(), bins.end(), randNum);
-    size_t index = std::distance(bins.begin(), it);
-    samples.push_back(choices[index]);
-  }
-
-  return samples;
-}
-
 TFHelper::TFHelper(std::shared_ptr<rclcpp::Node> node) {
   // logger = node->get_logger();
   tf_buffer_ = std::make_unique<tf2_ros::Buffer>(node->get_clock());
@@ -72,7 +39,7 @@ TFHelper::TFHelper(std::shared_ptr<rclcpp::Node> node) {
 }
 
 geometry_msgs::msg::Pose
-convert_translation_rotation_to_pose(float translation[3], float rotation[4]) {
+TFHelper::convert_translation_rotation_to_pose(float translation[3], float rotation[4]) {
   geometry_msgs::msg::Pose pose;
 
   pose.position.x = translation[0];

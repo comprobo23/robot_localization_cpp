@@ -1,7 +1,6 @@
 #ifndef HELPER_FUNCTIONS_HPP
 #define HELPER_FUNCTIONS_HPP
 
-// #include <buffer.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
@@ -14,18 +13,6 @@
 #include <tuple>
 
 #include "rclcpp/rclcpp.hpp"
-
-/**
- * Return a random sample of n elements from the set choices with the specified
- * probabilities
- * @param choices: the values to sample from represented as a list
- * @param probabilities: the probability of selecting each element in choices
- * represented as a list
- * @param n: the number of samples
- */
-std::vector<unsigned int> draw_random_sample(std::vector<unsigned int> choices,
-                                             std::vector<float> probabilities,
-                                             unsigned int n);
 
 /**
  * TFHelper Provides functionality to convert poses between various forms,
