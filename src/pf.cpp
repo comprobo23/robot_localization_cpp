@@ -54,16 +54,16 @@ void Particle::add_noise() {
   this->theta += dist(gen);
 }
 void Particle::update_weight(float new_w) { this->w = new_w; }
-Eigen::Matrix3d Particle::transform_scan_to_map(std::vector<float> r,
-                                                std::vector<float> theta) {
+Eigen::Matrix3Xd Particle::transform_scan_to_map(std::vector<float> r,
+                                                 std::vector<float> theta) {
   std::vector<float> x;
   std::vector<float> y;
   std::vector<float> ones;
   Eigen::Matrix3Xd scan(3, r.size());
 
   for (unsigned int i = 0; i < r.size(); i++) {
-    scan(0, i) = r[i] * r[i] * cos(theta[i]);
-    scan(1, i) = r[i] * r[i] * sin(theta[i]);
+    scan(0, i) = r[i] * cos(theta[i]);
+    scan(1, i) = r[i] * sin(theta[i]);
     scan(2, i) = 1;
   }
   return this->homogeneous_pose() * scan;
@@ -87,23 +87,13 @@ std::vector<Particle> draw_random_sample(std::vector<Particle> choices,
   std::vector<Particle> samples;
   std::vector<float> bins;
 
-  // Compute cumulative probabilities
-  float cumulative = 0.0;
-  for (float prob : probabilities) {
-    cumulative += prob;
-    bins.push_back(cumulative);
-  }
-
   // Initialize random number generator
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dist(0.0, 1.0);
+  std::discrete_distribution<> d(probabilities.begin(), probabilities.end());
 
-  for (size_t i = 0; i < n; ++i) {
-    float randNum = dist(gen);
-    auto it = std::upper_bound(bins.begin(), bins.end(), randNum);
-    size_t index = std::distance(bins.begin(), it);
-    samples.push_back(choices[index]);
+  for (unsigned int i = 0; i < n; i++) {
+    samples.push_back(choices[d(gen)]);
   }
 
   return samples;
@@ -208,8 +198,8 @@ void ParticleFilter::run_loop() {
     update_particles_with_laser(r,
                                 theta); // update based on laser scan
     update_robot_pose();  // update robot's pose based on particles
-    resample_particles(); // resample particles to focus on areas of
-                          // high density
+    resample_particles(); // resample particles to focus on areas of high
+                          // density
   }
 
   // publish particles (so things like rviz can see them)
@@ -237,13 +227,13 @@ void ParticleFilter::update_robot_pose() {
     }
   }
 
-  float particle_xy_theta[3] = {best_particle.x, best_particle.y, 0};
+  float particle_pos[3] = {best_particle.x, best_particle.y, 0.0};
   auto particle_quat = quaternion_from_euler(0, 0, best_particle.theta);
   float particle_quat_arr[4] = {(float)particle_quat.x, (float)particle_quat.y,
                                 (float)particle_quat.z, (float)particle_quat.w};
   auto robot_pose =
       this->transform_helper_->convert_translation_rotation_to_pose(
-          particle_xy_theta, particle_quat_arr);
+          particle_pos, particle_quat_arr);
   this->transform_helper_->fix_map_to_odom_transform(robot_pose,
                                                      this->odom_pose.value());
 }
@@ -291,12 +281,13 @@ void ParticleFilter::resample_particles() {
   for (unsigned int i = 0; i < this->particle_cloud.size(); i++) {
     probabilities.push_back(this->particle_cloud[i].w);
   }
-  this->particle_cloud = draw_random_sample(this->particle_cloud, probabilities,
+  this->particle_cloud = draw_random_sample(this->particle_cloud,
+  probabilities,
                                             this->n_particles);
 
-  for (unsigned int i = 0; i < this->particle_cloud.size(); i++) {
-    this->particle_cloud[i].add_noise();
-  }
+  // for (unsigned int i = 0; i < this->particle_cloud.size(); i++) {
+  //   this->particle_cloud[i].add_noise();
+  // }
 
   this->normalize_particles();
 }
@@ -307,18 +298,18 @@ void ParticleFilter::update_particles_with_laser(std::vector<float> r,
     auto laser_scan_map_frame =
         this->particle_cloud[i].transform_scan_to_map(r, theta);
 
-    // double avg_dist = 0.0;
-    // for (unsigned int i = 0; i < r.size(); i++) {
-    //   avg_dist += this->occupancy_field->get_closest_obstacle_distance(
-    //                   laser_scan_map_frame(0, i), laser_scan_map_frame(1, i)) /
-    //               r.size();
-    //   // Update the particle's weight based on the gaussian of the average
-    //   // distance
-    //   auto gaussian = 1 / (0.2 * pow((2 * M_PI), 0.5)) *
-    //                   exp(-0.5 * pow((avg_dist / 0.2), 0.5));
+    double avg_dist = 0.0;
+    for (unsigned int i = 0; i < r.size(); i++) {
+      avg_dist += this->occupancy_field->get_closest_obstacle_distance(
+                      laser_scan_map_frame(0, i), laser_scan_map_frame(1, i)) /
+                  r.size();
+    }
+    // Update the particle's weight based on the gaussian of the average
+    // distance
+    auto gaussian =
+        1 / (0.2 * pow((2 * M_PI), 0.5)) * exp(-0.5 * pow((avg_dist / 0.2), 2));
 
-    //   this->particle_cloud[i].update_weight(gaussian);
-    // }
+    this->particle_cloud[i].update_weight(gaussian);
   }
 }
 
@@ -345,9 +336,6 @@ void ParticleFilter::initialize_particle_cloud(
     new_particle.x = x_dist(gen);
     new_particle.y = y_dist(gen);
     new_particle.theta = theta_dist(gen);
-    // new_particle.x = 0;
-    // new_particle.y = 0;
-    // new_particle.theta = 0;
     new_particle.w = 1.0;
 
     if (this->occupancy_field->get_closest_obstacle_distance(

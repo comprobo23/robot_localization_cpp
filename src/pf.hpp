@@ -54,7 +54,7 @@ public:
   void update_position(Eigen::Matrix3d delta, float delta_angle);
   void add_noise();
   void update_weight(float new_w);
-  Eigen::Matrix3d transform_scan_to_map(std::vector<float> r,
+  Eigen::Matrix3Xd transform_scan_to_map(std::vector<float> r,
                                         std::vector<float> theta);
   Eigen::Matrix3d homogeneous_pose();
 };
